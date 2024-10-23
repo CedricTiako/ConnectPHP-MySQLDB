@@ -1,8 +1,9 @@
 <?php
 
 class ConnectMySQLDB {
-    private $pdo;
+    private PDO $pdo;
 
+    // Constantes pour la configuration de la base de données
     const DB_HOST = 'localhost';
     const DB_NAME = 'database_name';
     const DB_USER = 'username';
@@ -10,6 +11,7 @@ class ConnectMySQLDB {
 
     public function __construct() {
         try {
+            // Utilisation des constantes pour établir la connexion
             $this->pdo = new PDO("mysql:host=" . self::DB_HOST . ";dbname=" . self::DB_NAME, self::DB_USER, self::DB_PASS, [
                 PDO::ATTR_PERSISTENT => true,
                 PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8'
@@ -21,6 +23,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Méthode pour insérer des données
     public function create(string $table, array $data): bool {
         $this->sanitizeData($data);
         try {
@@ -38,6 +41,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Méthode pour lire des données avec support des conditions et des tris
     public function read(string $table, array $conditions = [], string $orderBy = ''): array {
         try {
             $sql = "SELECT * FROM $table";
@@ -58,6 +62,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Méthode pour mettre à jour des données avec des conditions
     public function update(string $table, array $data, array $conditions): bool {
         $this->sanitizeData($data);
         try {
@@ -80,6 +85,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Méthode pour supprimer des données avec conditions
     public function delete(string $table, array $conditions): bool {
         try {
             $sql = "DELETE FROM $table";
@@ -96,39 +102,7 @@ class ConnectMySQLDB {
         }
     }
 
-    private function buildWhereClause(array $conditions, string $prefix = ''): string {
-        $clauses = [];
-        foreach ($conditions as $field => $value) {
-            if (is_array($value)) {
-                $operator = $value[0];
-                $clauses[] = "$field $operator :{$prefix}$field";
-            } else {
-                $clauses[] = "$field = :{$prefix}$field";
-            }
-        }
-        return ' WHERE ' . implode(' AND ', $clauses);
-    }
-
-    private function bindValues($stmt, array $data, string $prefix = ''): void {
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $stmt->bindValue(":{$prefix}$key", $value[1]);
-            } else {
-                $stmt->bindValue(":{$prefix}$key", $value);
-            }
-        }
-    }
-
-    private function sanitizeData(array &$data): void {
-        foreach ($data as $key => &$value) {
-            $value = htmlspecialchars(strip_tags($value));
-        }
-    }
-
-    private function logError(string $message, PDOException $exception): void {
-        error_log("$message: " . $exception->getMessage());
-    }
-
+    // Méthode pour exécuter des requêtes personnalisées
     public function executeCustomQuery(string $query, array $params = []) {
         try {
             $stmt = $this->pdo->prepare($query);
@@ -145,6 +119,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Méthode pour gérer les sélections avec jointures
     public function customSelect(array $tables, array $conditions = [], array $joins = [], string $orderBy = ''): array {
         try {
             $tableList = implode(', ', $tables);
@@ -169,6 +144,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Exécuter une procédure stockée sans retour
     public function executeStoredProcedure(string $procedureName, array $params = []): void {
         try {
             $placeholders = implode(', ', array_fill(0, count($params), '?'));
@@ -180,6 +156,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Exécuter une procédure stockée avec retour de résultats
     public function executeStoredProcedureWithResults(string $procedureName, array $params = []): array {
         try {
             $placeholders = implode(', ', array_fill(0, count($params), '?'));
@@ -192,6 +169,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Récupérer le dernier ID inséré
     public function lastInsertID(): mixed {
         try {
             return $this->pdo->lastInsertId();
@@ -201,6 +179,7 @@ class ConnectMySQLDB {
         }
     }
 
+    // Gestion des transactions avec callable
     public function transaction(callable $callback): mixed {
         try {
             $this->pdo->beginTransaction();
@@ -212,5 +191,42 @@ class ConnectMySQLDB {
             $this->logError("Transaction error", $e);
             throw $e;
         }
+    }
+
+    // Construction de la clause WHERE pour les conditions
+    private function buildWhereClause(array $conditions, string $prefix = ''): string {
+        $clauses = [];
+        foreach ($conditions as $field => $value) {
+            if (is_array($value)) {
+                $operator = $value[0];
+                $clauses[] = "$field $operator :{$prefix}$field";
+            } else {
+                $clauses[] = "$field = :{$prefix}$field";
+            }
+        }
+        return ' WHERE ' . implode(' AND ', $clauses);
+    }
+
+    // Lier les valeurs à la requête
+    private function bindValues($stmt, array $data, string $prefix = ''): void {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $stmt->bindValue(":{$prefix}$key", $value[1]);
+            } else {
+                $stmt->bindValue(":{$prefix}$key", $value);
+            }
+        }
+    }
+
+    // Assainissement des données pour empêcher les attaques XSS
+    private function sanitizeData(array &$data): void {
+        foreach ($data as $key => &$value) {
+            $value = htmlspecialchars(strip_tags($value));
+        }
+    }
+
+    // Logger les erreurs
+    private function logError(string $message, PDOException $exception): void {
+        error_log("$message: " . $exception->getMessage());
     }
 }
